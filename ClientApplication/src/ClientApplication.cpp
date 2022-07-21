@@ -22,7 +22,7 @@ public:
         cout<<"Conectando al servidor..."<<endl<<endl;
         WSAStartup(MAKEWORD(2,0), &WSAData);
         server = socket(AF_INET, SOCK_STREAM, 0);
-        addr.sin_addr.s_addr = inet_addr("192.168.0.8");
+        addr.sin_addr.s_addr = inet_addr("192.168.43.102");
         addr.sin_family = AF_INET;
         addr.sin_port = htons(5555);
         connect(server, (SOCKADDR *)&addr, sizeof(addr));
