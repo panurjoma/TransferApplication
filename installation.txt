@@ -1,3 +1,5 @@
 It is needed to have installed MinGW in your computer windows. 
 
 If you do not have it, here I leave the download link: https://osdn.net/projects/mingw/releases/
+
+Also it is needed to install the msys64 libraries in system; link here: https://www.msys2.org/
