@@ -46,6 +46,13 @@ public:
         return i;
     }
 
+    int64_t RecvFileSize()
+    {
+    	char size_filename_int;
+    	int64_t size_filename_status = recv(server, &size_filename_int, sizeof(int), 0 );
+		return size_filename_status;
+    }
+
     /* Sends data in buffer until bufferSize value is met */
     int SendBuffer(const char* buffer, int bufferSize, int chunkSize = 4 * 1024) {
 
@@ -106,10 +113,7 @@ public:
 
         /* Receive file size */
         int64_t fileSize;
-        if (RecvBuffer(reinterpret_cast<char*>(&fileSize),
-                sizeof(fileSize)) != sizeof(fileSize)) {
-            return -2;
-        }
+        fileSize = RecvFileSize();
 
         char* buffer = new char[chunkSize];
         bool errored = false;

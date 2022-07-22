@@ -74,28 +74,34 @@ public:
     returns -1 if file couldn't be opened for input
     returns -2 if couldn't send file length properly
     returns -3 if file couldn't be sent properly */
-    int64_t SendFile(const std::string& fileName,const int fileSize , int chunkSize = 64 * 1024) {
+    int64_t SendFile(const std::string& fileName, int chunkSize = 64 * 1024) {
 
+    	// get length of file:
+    	std::ifstream file(fileName, std::ifstream::binary);
+		file.seekg (0, file.end);
+		int length = file.tellg();
+		file.seekg (0, file.beg);
 //        const int64_t fileSize = GetFileSize(fileName);
-        if (fileSize < 0) { return -1; }
 
-        std::ifstream file(fileName, std::ifstream::binary);
+        if (length < 0) { return -1; }
+
         if (file.fail()) { return -1; }
 
         /* Send FileSize */
-        if (SendBuffer(reinterpret_cast<const char*>(&fileSize),
-            sizeof(fileSize)) != sizeof(fileSize)) {
+        if (SendBuffer(reinterpret_cast<const char*>(&length),
+            sizeof(length)) != sizeof(length)) {
             return -2;
         }
 
         /* Send Data */
-        char* buffer = new char[chunkSize];
+		char * buffer = new char [length];
+
+		std::cout << "Reading " << length << " characters... ";
         bool errored = false;
-        int64_t i = fileSize;
+        int64_t i = length;
         while (i != 0) {
-            const int64_t ssize = std::min(i, (int64_t)chunkSize);
-            if (!file.read(buffer, ssize)) { errored = true; break; }
-            const int l = SendBuffer(buffer, (int)ssize);
+            if (!file.read(buffer, length)) { errored = true; break; }
+            const int l = SendBuffer(buffer, (int)length);
             if (l < 0) { errored = true; break; }
             i -= l;
         }
@@ -103,7 +109,7 @@ public:
 
         file.close();
 
-        return errored ? -3 : fileSize;
+        return errored ? -3 : length;
     }
 
     /* Receives a file
