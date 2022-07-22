@@ -69,6 +69,11 @@ public:
         return i;
     }
 
+    void SendFileSize(const char size_filename)
+    {
+		send(client, &size_filename, sizeof(int), 0);
+    }
+
     /* Sends a file
     returns size of file if success
     returns -1 if file couldn't be opened for input
@@ -88,10 +93,8 @@ public:
         if (file.fail()) { return -1; }
 
         /* Send FileSize */
-        if (SendBuffer(reinterpret_cast<const char*>(&length),
-            sizeof(length)) != sizeof(length)) {
-            return -2;
-        }
+        char FileSize = static_cast<char>(length);
+        SendFileSize(FileSize);
 
         /* Send Data */
 		char * buffer = new char [length];
