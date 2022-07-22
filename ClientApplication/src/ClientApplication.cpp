@@ -39,7 +39,7 @@ public:
     int RecvBuffer(char* buffer, int bufferSize, int chunkSize = 4 * 1024) {
         int i = 0;
         while (i < bufferSize) {
-            const int l = recv(server, &buffer[i], __min(chunkSize, bufferSize - i), 0);
+            const int l = recv(server, &buffer[i], std::min(chunkSize, bufferSize - i), 0);
             if (l < 0) { return l; } // this is an error
             i += l;
         }
@@ -51,7 +51,7 @@ public:
 
         int i = 0;
         while (i < bufferSize) {
-            const int l = send(server, &buffer[i], __min(chunkSize, bufferSize - i), 0);
+            const int l = send(server, &buffer[i], std::min(chunkSize, bufferSize - i), 0);
             if (l < 0) { return l; } // this is an error
             i += l;
         }
@@ -81,7 +81,7 @@ public:
         bool errored = false;
         int64_t i = fileSize;
         while (i != 0) {
-            const int64_t ssize = __min(i, (int64_t)chunkSize);
+            const int64_t ssize = std::min(i, (int64_t)chunkSize);
             if (!file.read(buffer, ssize)) { errored = true; break; }
             const int l = SendBuffer(buffer, (int)ssize);
             if (l < 0) { errored = true; break; }
@@ -115,7 +115,7 @@ public:
         bool errored = false;
         int64_t i = fileSize;
         while (i != 0) {
-            const int r = RecvBuffer(buffer, (int)__min(i, (int64_t)chunkSize));
+            const int r = RecvBuffer(buffer, (int)std::min(i, (int64_t)chunkSize));
             if ((r < 0) || !file.write(buffer, r)) { errored = true; break; }
             i -= r;
         }
@@ -152,8 +152,13 @@ private:
 int main()
 {
     Client *Cliente = new Client();
-    while(true)
+    int64_t ReceivedFile = -1;
+    int iNumberOfTries = 10;
+    while(ReceivedFile < 0)
     {
-        Cliente->RecvFile("ReceivedData.txt");
+    	ReceivedFile = Cliente->RecvFile("ReceivedData");
+    	iNumberOfTries -=1;
     }
+
+    Cliente->CloseSocket();
 }

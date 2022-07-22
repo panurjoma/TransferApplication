@@ -50,7 +50,7 @@ public:
     int RecvBuffer(char* buffer, int bufferSize, int chunkSize = 4 * 1024) {
         int i = 0;
         while (i < bufferSize) {
-            const int l = recv(client, &buffer[i], __min(chunkSize, bufferSize - i), 0);
+            const int l = recv(client, &buffer[i], std::min(chunkSize, bufferSize - i), 0);
             if (l < 0) { return l; } // this is an error
             i += l;
         }
@@ -62,7 +62,7 @@ public:
 
         int i = 0;
         while (i < bufferSize) {
-            const int l = send(client, &buffer[i], __min(chunkSize, bufferSize - i), 0);
+            const int l = send(client, &buffer[i], std::min(chunkSize, bufferSize - i), 0);
             if (l < 0) { return l; } // this is an error
             i += l;
         }
@@ -74,9 +74,9 @@ public:
     returns -1 if file couldn't be opened for input
     returns -2 if couldn't send file length properly
     returns -3 if file couldn't be sent properly */
-    int64_t SendFile(const std::string& fileName, int chunkSize = 64 * 1024) {
+    int64_t SendFile(const std::string& fileName,const int fileSize , int chunkSize = 64 * 1024) {
 
-        const int64_t fileSize = GetFileSize(fileName);
+//        const int64_t fileSize = GetFileSize(fileName);
         if (fileSize < 0) { return -1; }
 
         std::ifstream file(fileName, std::ifstream::binary);
@@ -93,7 +93,7 @@ public:
         bool errored = false;
         int64_t i = fileSize;
         while (i != 0) {
-            const int64_t ssize = __min(i, (int64_t)chunkSize);
+            const int64_t ssize = std::min(i, (int64_t)chunkSize);
             if (!file.read(buffer, ssize)) { errored = true; break; }
             const int l = SendBuffer(buffer, (int)ssize);
             if (l < 0) { errored = true; break; }
@@ -127,7 +127,7 @@ public:
         bool errored = false;
         int64_t i = fileSize;
         while (i != 0) {
-            const int r = RecvBuffer(buffer, (int)__min(i, (int64_t)chunkSize));
+            const int r = RecvBuffer(buffer, (int)std::min(i, (int64_t)chunkSize));
             if ((r < 0) || !file.write(buffer, r)) { errored = true; break; }
             i -= r;
         }
@@ -159,14 +159,30 @@ private:
 };
 
 
-int main()
+int main(int argc, char *argv[])
 {
+
+	// ++++++++++++++++++++++++++++++++ PRINT INFORMATION ABOUT THE PROCESS THAT WILL TAKE PLACE ++++++++++++++++++++++++++++++++
+	if (strcmp(argv[2],"1")==0){
+		printf("[INFO]The file that will be sent is: %s (Which name are composed by %zu characters)\n", argv[1],strlen(argv[1]));
+	} else if (strcmp(argv[2],"0")==0){
+		printf("[INFO]The file that will be removed is: %s (Which name are composed by %zu characters)\n", argv[1],strlen(argv[1]));
+	} else {
+		printf("[ERROR]Invalid second argument. Introduce 1 to send a file or -1 to delete it");
+		return 1;
+	}
+
+	/* Get the file size to send */
+	size_t size_filename = strlen(argv[1]); // Te filename is given as an input when calling the "exec_server" program. The returned
+	// value of the strlen function is of type size_t
+	int size_filename_int = (int)size_filename;
+
   Server *Servidor = new Server();
   int64_t SendFile = -1;
   int iNumberOfTries = 10;
   while(iNumberOfTries > 0  || SendFile > 0)
   {
-	  SendFile = Servidor->SendFile("SendData.txt");
+	  SendFile = Servidor->SendFile("SendData.txt", size_filename_int);
 	  iNumberOfTries -= 1;
   }
 }
