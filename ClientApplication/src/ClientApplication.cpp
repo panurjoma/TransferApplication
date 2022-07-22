@@ -29,6 +29,7 @@ public:
         WSAStartup(MAKEWORD(2,0), &WSAData);
         server = socket(AF_INET, SOCK_STREAM, 0);
         addr.sin_addr.s_addr = inet_addr("192.168.43.102");
+        addr.sin_addr.s_addr = inet_addr("192.168.43.45");
         addr.sin_family = AF_INET;
         addr.sin_port = htons(5555);
         connect(server, (SOCKADDR *)&addr, sizeof(addr));
@@ -46,11 +47,11 @@ public:
         return i;
     }
 
-    int64_t RecvFileSize()
+    char RecvFileSize()
     {
-    	char size_filename_int;
-    	int64_t size_filename_status = recv(server, &size_filename_int, sizeof(int), 0 );
-		return size_filename_status;
+    	char* size_filename_int;
+    	int64_t size_filename_status = recv(server, size_filename_int, sizeof(int), 0 );
+		return (*size_filename_int);
     }
 
     /* Sends data in buffer until bufferSize value is met */
@@ -112,7 +113,7 @@ public:
         if (file.fail()) { return -1; }
 
         /* Receive file size */
-        int64_t fileSize;
+        char fileSize;
         fileSize = RecvFileSize();
 
         char* buffer = new char[chunkSize];
@@ -142,14 +143,14 @@ private:
 
     int64_t GetFileSize(const std::string& fileName)
     {
-		FILE* f;
-		if (fopen_s(&f, fileName.c_str(), "rb") != 0) {
-			return -1;
-		}
-		_fseeki64(f, 0, SEEK_END);
-		const int64_t len = _ftelli64(f);
-		fclose(f);
-		return len;
+//		FILE* f;
+//		if (fopen_s(&f, fileName.c_str(), "rb") != 0) {
+//			return -1;
+//		}
+//		_fseeki64(f, 0, SEEK_END);
+//		const int64_t len = _ftelli64(f);
+//		fclose(f);
+		return 0;
 	}
 };
 
@@ -160,7 +161,7 @@ int main()
     int iNumberOfTries = 10;
     while(ReceivedFile < 0)
     {
-    	ReceivedFile = Cliente->RecvFile("ReceivedData");
+    	ReceivedFile = Cliente->RecvFile("ReceivedData.txt");
     	iNumberOfTries -=1;
     }
 
