@@ -182,7 +182,8 @@ int main(int argc, char *argv[])
   int iNumberOfTries = 10;
   while(iNumberOfTries > 0  || SendFile > 0)
   {
-	  SendFile = Servidor->SendFile("SendData.txt", size_filename_int);
+	  std::string sFileToSend = static_cast<std::string>(argv[1]);
+	  SendFile = Servidor->SendFile(sFileToSend, size_filename_int);
 	  iNumberOfTries -= 1;
   }
 }
