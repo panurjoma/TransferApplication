@@ -140,31 +140,17 @@ public:
 };
 
 
-int main(int argc, char *argv[])
+int main()
 {
-
-	// ++++++++++++++++++++++++++++++++ PRINT INFORMATION ABOUT THE PROCESS THAT WILL TAKE PLACE ++++++++++++++++++++++++++++++++
-	if (strcmp(argv[2],"1")==0){
-		printf("[INFO]The file that will be sent is: %s (Which name are composed by %zu characters)\n", argv[1],strlen(argv[1]));
-	} else if (strcmp(argv[2],"0")==0){
-		printf("[INFO]The file that will be removed is: %s (Which name are composed by %zu characters)\n", argv[1],strlen(argv[1]));
-	} else {
-		printf("[ERROR]Invalid second argument. Introduce 1 to send a file or -1 to delete it");
-		return 1;
-	}
-
-	/* Get the file size to send */
-	size_t size_filename = strlen(argv[1]); // Te filename is given as an input when calling the "exec_server" program. The returned
-	// value of the strlen function is of type size_t
-	int size_filename_int = (int)size_filename;
-
   Server *Servidor = new Server();
   int64_t SendFile = -1;
   int iNumberOfTries = 10;
   while(iNumberOfTries > 0  || SendFile > 0)
   {
-	  std::string sFileToSend = static_cast<std::string>(argv[1]);
-	  SendFile = Servidor->SendFile(sFileToSend, size_filename_int);
+	  std::string sFileToSend;
+	  cout << "Introduce File Path to copy (absolute path)";
+	  cin >> sFileToSend;
+	  SendFile = Servidor->SendFile(sFileToSend);
 	  iNumberOfTries -= 1;
   }
 }
