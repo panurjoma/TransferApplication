@@ -59,18 +59,14 @@ public:
         return i;
     }
 
-    long int RecvFileSize()
+    int RecvFileSize()
     {
-    	char size_filensize_int[sizeof(long int)];
-    	recv(server, &size_filensize_int[0], sizeof(long int), 0 );
-    	long int filesize = int(size_filensize_int[7]) << 56 |
-							int(size_filensize_int[7]) << 48 |
-							int(size_filensize_int[7]) << 40 |
-							int(size_filensize_int[7]) << 32 |
-							int(size_filensize_int[7]) << 24 |
-							int(size_filensize_int[7]) << 16 |
-							int(size_filensize_int[7]) << 8  |
-							int(size_filensize_int[7]);
+    	char size_filensize_int[sizeof(int)];
+    	recv(server, &size_filensize_int[0], sizeof(int), 0 );
+    	int filesize = int(size_filensize_int[3]) << 24 |
+							int(size_filensize_int[2]) << 16 |
+							int(size_filensize_int[1]) << 8  |
+							int(size_filensize_int[0]);
 		return filesize;
     }
 
@@ -104,21 +100,21 @@ public:
     	RecvState eRecvState = RecvState::CorrectRecv;
 
     	/* Receive file size and file name */
-		long int fileSize;
+		int fileSize;
 		fileSize = RecvFileSize();
 		if (fileSize < 0)
 		{
 			return RecvState::InvalidSize;
 		}
-		std::string fileName = RecvFileName();
+//		std::string fileName = RecvFileName();
 
-        std::ofstream file(fileName, std::ofstream::binary);
+        std::ofstream file("DataReceived", std::ofstream::binary);
         if (file.fail()) { return RecvState::InvalidName; }
 
-        char* buffer = new char[chunkSize];
+        char* buffer = new char[fileSize];
         int64_t i = fileSize;
         while (i != 0) {
-            const int r = RecvBuffer(buffer, (int)std::min(i, (int64_t)chunkSize));
+            const int r = RecvBuffer(buffer, fileSize);
             if ((r < 0) || !file.write(buffer, r)) { eRecvState = RecvState::FileDataNotRecv; break; }
             i -= r;
         }

@@ -8,6 +8,7 @@
 
 /* System includes */
 #include <iostream>
+#include <string>
 #include <winsock2.h>
 #include <fstream>
 #include <ostream>
@@ -73,9 +74,9 @@ public:
     }
 
     /* Send file size and file name */
-    void SendFileSize(long int fileSize)
+    void SendFileSize(int fileSize)
     {
-		send(client, reinterpret_cast<char*>(&fileSize), sizeof(long int), 0);
+		send(client, reinterpret_cast<char*>(&fileSize), sizeof(int), 0);
     }
 
     void SendFileName(std::string filename)
@@ -96,7 +97,7 @@ public:
     	// get length of file:
     	std::ifstream file(fileName, std::ifstream::binary);
 		file.seekg (0, file.end);
-		long int length = file.tellg();
+		int length = file.tellg();
 		file.seekg (0, file.beg);
 
         if (length < 0) { return SendState::InvalidSize; }
@@ -104,10 +105,10 @@ public:
         if (file.fail()) { return SendState::FileNotExist; }
 
         /* Send FileSize */
-        if (length < 536870911)
+        if (length < 4294967296)
         {
         	SendFileSize(length);
-        	SendFileName(fileName);
+//        	SendFileName(fileName);
         }
         else
         {
@@ -119,7 +120,7 @@ public:
         int64_t i = length;
         while (i != 0) {
             if (!file.read(buffer, length)) { eSendState = SendState::FileDataNotSend ; break; }
-            const int l = SendBuffer(buffer, (int)length);
+            const int l = SendBuffer(buffer, length);
             if (l < 0) { eSendState = SendState::FileDataNotSend; break; }
             i -= l;
         }
@@ -145,11 +146,11 @@ int main()
   Server *Servidor = new Server();
   int64_t SendFile = -1;
   int iNumberOfTries = 10;
-  while(iNumberOfTries > 0  || SendFile > 0)
+  while(iNumberOfTries > 0  && SendFile != 0)
   {
-	  std::string sFileToSend;
-	  cout << "Introduce File Path to copy (absolute path)";
-	  cin >> sFileToSend;
+	  std::string sFileToSend = static_cast<std::string>("C:\\Users\\PPHL\\Documents\\CosmosChallenge\\alhambra.jpg");
+//	  cout << "Introduce File Path to copy (absolute path)";
+//	  getline (cin, sFileToSend);
 	  SendFile = Servidor->SendFile(sFileToSend);
 	  iNumberOfTries -= 1;
   }
