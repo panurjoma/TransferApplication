@@ -21,6 +21,13 @@ public:
     SOCKADDR_IN addr;
     int iChunkSize = 4 * 1024; // by default
     char cBuffer[5000];
+    enum RecvState
+   {
+	  CorrectRecv = 0,
+	  InvalidSize = 1,
+	  InvalidName = 2,
+	  FileDataNotRecv = 3
+   };
 
     /* Constructor of the class */
     Client()
@@ -36,6 +43,11 @@ public:
         cout << "Server connected!" << endl;
     }
 
+    ~Client()
+    {
+    	CloseSocket();
+    }
+
     /* Receives data in to buffer until bufferSize value is met */
     int RecvBuffer(char* buffer, int bufferSize, int chunkSize = 4 * 1024) {
         int i = 0;
@@ -47,59 +59,39 @@ public:
         return i;
     }
 
-    char RecvFileSize()
+    long int RecvFileSize()
     {
-    	char* size_filename_int;
-    	int64_t size_filename_status = recv(server, size_filename_int, sizeof(int), 0 );
-		return (*size_filename_int);
+    	char size_filensize_int[sizeof(long int)];
+    	recv(server, &size_filensize_int[0], sizeof(long int), 0 );
+    	long int filesize = int(size_filensize_int[7]) << 56 |
+							int(size_filensize_int[7]) << 48 |
+							int(size_filensize_int[7]) << 40 |
+							int(size_filensize_int[7]) << 32 |
+							int(size_filensize_int[7]) << 24 |
+							int(size_filensize_int[7]) << 16 |
+							int(size_filensize_int[7]) << 8  |
+							int(size_filensize_int[7]);
+		return filesize;
     }
 
-    /* Sends data in buffer until bufferSize value is met */
-    int SendBuffer(const char* buffer, int bufferSize, int chunkSize = 4 * 1024) {
+    std::string RecvFileName()
+	{
+		char size_filename_int[sizeof(std::string)];
+		recv(server, &size_filename_int[0], sizeof(long int), 0 );
+		std::string sFileName(size_filename_int);
+		return sFileName;
+	}
 
-        int i = 0;
-        while (i < bufferSize) {
-            const int l = send(server, &buffer[i], std::min(chunkSize, bufferSize - i), 0);
-            if (l < 0) { return l; } // this is an error
-            i += l;
+    // converts character array
+    // to string and returns it
+    string convertToString(char* a, int size)
+    {
+        int i;
+        string s = "";
+        for (i = 0; i < size; i++) {
+            s = s + a[i];
         }
-        return i;
-    }
-
-    /* Sends a file
-	returns size of file if success
-	returns -1 if file couldn't be opened for input
-	returns -2 if couldn't send file length properly
-	returns -3 if file couldn't be sent properly */
-    int64_t SendFile(const std::string& fileName, int chunkSize = 64 * 1024) {
-
-        const int64_t fileSize = GetFileSize(fileName);
-        if (fileSize < 0) { return -1; }
-
-        std::ifstream file(fileName, std::ifstream::binary);
-        if (file.fail()) { return -1; }
-
-        /* Send FileSize */
-        if (SendBuffer(reinterpret_cast<const char*>(&fileSize),
-            sizeof(fileSize)) != sizeof(fileSize)) {
-            return -2;
-        }
-
-        char* buffer = new char[chunkSize];
-        bool errored = false;
-        int64_t i = fileSize;
-        while (i != 0) {
-            const int64_t ssize = std::min(i, (int64_t)chunkSize);
-            if (!file.read(buffer, ssize)) { errored = true; break; }
-            const int l = SendBuffer(buffer, (int)ssize);
-            if (l < 0) { errored = true; break; }
-            i -= l;
-        }
-        delete[] buffer;
-
-        file.close();
-
-        return errored ? -3 : fileSize;
+        return s;
     }
 
     /* Receives a file
@@ -107,28 +99,34 @@ public:
 	returns -1 if file couldn't be opened for output
 	returns -2 if couldn't receive file length properly
 	returns -3 if couldn't receive file properly */
-    int64_t RecvFile(const std::string& fileName, int chunkSize = 64 * 1024)
+    RecvState RecvFile(int chunkSize = 64 * 1024)
     {
-        std::ofstream file(fileName, std::ofstream::binary);
-        if (file.fail()) { return -1; }
+    	RecvState eRecvState = RecvState::CorrectRecv;
 
-        /* Receive file size */
-        char fileSize;
-        fileSize = RecvFileSize();
+    	/* Receive file size and file name */
+		long int fileSize;
+		fileSize = RecvFileSize();
+		if (fileSize < 0)
+		{
+			return RecvState::InvalidSize;
+		}
+		std::string fileName = RecvFileName();
+
+        std::ofstream file(fileName, std::ofstream::binary);
+        if (file.fail()) { return RecvState::InvalidName; }
 
         char* buffer = new char[chunkSize];
-        bool errored = false;
         int64_t i = fileSize;
         while (i != 0) {
             const int r = RecvBuffer(buffer, (int)std::min(i, (int64_t)chunkSize));
-            if ((r < 0) || !file.write(buffer, r)) { errored = true; break; }
+            if ((r < 0) || !file.write(buffer, r)) { eRecvState = RecvState::FileDataNotRecv; break; }
             i -= r;
         }
         delete[] buffer;
 
         file.close();
 
-        return errored ? -3 : fileSize;
+        return eRecvState;
     }
 
     /* Close the socket */
@@ -138,20 +136,6 @@ public:
        WSACleanup();
        cout << "Socket closed." << endl << endl;
     }
-
-private:
-
-    int64_t GetFileSize(const std::string& fileName)
-    {
-//		FILE* f;
-//		if (fopen_s(&f, fileName.c_str(), "rb") != 0) {
-//			return -1;
-//		}
-//		_fseeki64(f, 0, SEEK_END);
-//		const int64_t len = _ftelli64(f);
-//		fclose(f);
-		return 0;
-	}
 };
 
 int main()
@@ -161,7 +145,7 @@ int main()
     int iNumberOfTries = 10;
     while(ReceivedFile < 0)
     {
-    	ReceivedFile = Cliente->RecvFile("ReceivedData.txt");
+    	ReceivedFile = Cliente->RecvFile();
     	iNumberOfTries -=1;
     }
 

@@ -80,7 +80,7 @@ public:
 
     void SendFileName(std::string filename)
 	{
-		send(client, reinterpret_cast<char*>(&filename), sizeof(std::string), 0);
+		send(client, reinterpret_cast<char*>(&filename), sizeof(filename), 0);
 	}
 
     /* Sends a file
