@@ -22,6 +22,14 @@ public:
     SOCKADDR_IN serverAddr, clientAddr;
     int iChunkSize  = 4 * 1024; // by default
     char cBuffer[5000];
+    enum SendState
+   {
+      CorrectSend = 0,
+	  InvalidSize = 1,
+	  FileNotExist = 2,
+	  FileSizeNotSend = 3,
+	  FileDataNotSend = 4
+   };
 
     /* Constructor of the class */
     Server()
@@ -46,15 +54,10 @@ public:
         }
     }
 
-    /* Receives data in to buffer until bufferSize value is met */
-    int RecvBuffer(char* buffer, int bufferSize, int chunkSize = 4 * 1024) {
-        int i = 0;
-        while (i < bufferSize) {
-            const int l = recv(client, &buffer[i], std::min(chunkSize, bufferSize - i), 0);
-            if (l < 0) { return l; } // this is an error
-            i += l;
-        }
-        return i;
+    /* Destructor of the class */
+    ~Server()
+    {
+    	CloseSocket();
     }
 
     /* Sends data in buffer until bufferSize value is met */
@@ -69,82 +72,62 @@ public:
         return i;
     }
 
-    void SendFileSize(const char size_filename)
+    /* Send file size and file name */
+    void SendFileSize(long int fileSize)
     {
-		send(client, &size_filename, sizeof(int), 0);
+		send(client, reinterpret_cast<char*>(&fileSize), sizeof(long int), 0);
     }
+
+    void SendFileName(std::string filename)
+	{
+		send(client, reinterpret_cast<char*>(&filename), sizeof(std::string), 0);
+	}
 
     /* Sends a file
     returns size of file if success
     returns -1 if file couldn't be opened for input
     returns -2 if couldn't send file length properly
     returns -3 if file couldn't be sent properly */
-    int64_t SendFile(const std::string& fileName, int chunkSize = 64 * 1024) {
+    SendState SendFile(std::string& fileName, int chunkSize = 64 * 1024) {
+
+    	/* Declare aux variable */
+    	SendState eSendState = SendState::CorrectSend;
 
     	// get length of file:
     	std::ifstream file(fileName, std::ifstream::binary);
 		file.seekg (0, file.end);
-		int length = file.tellg();
+		long int length = file.tellg();
 		file.seekg (0, file.beg);
-//        const int64_t fileSize = GetFileSize(fileName);
 
-        if (length < 0) { return -1; }
+        if (length < 0) { return SendState::InvalidSize; }
 
-        if (file.fail()) { return -1; }
+        if (file.fail()) { return SendState::FileNotExist; }
 
         /* Send FileSize */
-        char FileSize = static_cast<char>(length);
-        SendFileSize(FileSize);
+        if (length < 536870911)
+        {
+        	SendFileSize(length);
+        	SendFileName(fileName);
+        }
+        else
+        {
+        	return SendState::FileSizeNotSend;
+        }
 
         /* Send Data */
 		char * buffer = new char [length];
-
-		std::cout << "Reading " << length << " characters... ";
-        bool errored = false;
         int64_t i = length;
         while (i != 0) {
-            if (!file.read(buffer, length)) { errored = true; break; }
+            if (!file.read(buffer, length)) { eSendState = SendState::FileDataNotSend ; break; }
             const int l = SendBuffer(buffer, (int)length);
-            if (l < 0) { errored = true; break; }
+            if (l < 0) { eSendState = SendState::FileDataNotSend; break; }
             i -= l;
         }
         delete[] buffer;
 
         file.close();
 
-        return errored ? -3 : length;
-    }
-
-    /* Receives a file
-    returns size of file if success
-    returns -1 if file couldn't be opened for output
-    returns -2 if couldn't receive file length properly
-    returns -3 if couldn't receive file properly */
-    int64_t RecvFile(const std::string& fileName, int chunkSize = 64 * 1024)
-    {
-        std::ofstream file(fileName, std::ofstream::binary);
-        if (file.fail()) { return -1; }
-
-        /* Receive file size */
-        int64_t fileSize;
-        if (RecvBuffer(reinterpret_cast<char*>(&fileSize),
-                sizeof(fileSize)) != sizeof(fileSize)) {
-            return -2;
-        }
-
-        char* buffer = new char[chunkSize];
-        bool errored = false;
-        int64_t i = fileSize;
-        while (i != 0) {
-            const int r = RecvBuffer(buffer, (int)std::min(i, (int64_t)chunkSize));
-            if ((r < 0) || !file.write(buffer, r)) { errored = true; break; }
-            i -= r;
-        }
-        delete[] buffer;
-
-        file.close();
-
-        return errored ? -3 : fileSize;
+        return eSendState;
     }
 
     /* Close the socket */
@@ -153,18 +136,7 @@ public:
         closesocket(client);
         cout << "Socket closed, client disconnected." << endl;
     }
-private:
 
-    int64_t GetFileSize(const std::string& fileName) {
-        FILE* f;
-        if (fopen_s(&f, fileName.c_str(), "rb") != 0) {
-            return -1;
-        }
-        _fseeki64(f, 0, SEEK_END);
-        const int64_t len = _ftelli64(f);
-        fclose(f);
-        return len;
-    }
 };
 
 
